@@ -1,0 +1,111 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+# In-memory database
+profiles = []
+
+
+# 🎯 Skill Analysis
+def analyze_skills(skills):
+    level_map = {
+        "Beginner": 1,
+        "Intermediate": 2,
+        "Advanced": 3
+    }
+
+    total_score = 0
+    breakdown = []
+
+    for skill in skills:
+        score = level_map.get(skill.get("level"), 0)
+        total_score += score
+
+        breakdown.append({
+            "name": skill.get("name"),
+            "level": skill.get("level"),
+            "score": score
+        })
+
+    avg_score = round(total_score / len(skills), 2) if skills else 0
+
+    return {
+        "totalScore": total_score,
+        "averageScore": avg_score,
+        "breakdown": breakdown
+    }
+
+
+# 🎯 Career Recommendations
+def get_recommendations(profile):
+    skills = [s["name"] for s in profile.get("skills", [])]
+    recs = []
+
+    if "JavaScript" in skills and "React" in skills:
+        recs.append("Frontend Developer")
+
+    if "Python" in skills and "Machine learning" in skills:
+        recs.append("ML Engineer")
+
+    if "SQL" in skills and "Data analysis" in skills:
+        recs.append("Data Analyst")
+
+    if not recs:
+        recs.append("Explore full-stack development")
+
+    return recs
+
+
+# 🎯 Skill Gaps
+def find_skill_gaps(skills):
+    required = ["DSA", "System Design", "Git", "Communication"]
+    user_skills = [s["name"] for s in skills]
+
+    return [skill for skill in required if skill not in user_skills]
+
+
+# 📌 API: Submit Profile
+@app.route('/api/profile', methods=['POST'])
+def submit_profile():
+    profile = request.json
+
+    skill_analysis = analyze_skills(profile.get("skills", []))
+    recommendations = get_recommendations(profile)
+    gaps = find_skill_gaps(profile.get("skills", []))
+
+    result = {
+        **profile,
+        "insights": {
+            "skillAnalysis": skill_analysis,
+            "recommendations": recommendations,
+            "skillGaps": gaps
+        }
+    }
+
+    profiles.append(result)
+
+    return jsonify({
+        "message": "Profile analyzed successfully",
+        "data": result
+    })
+
+
+# 📌 API: Get all profiles
+@app.route('/api/profiles', methods=['GET'])
+def get_profiles():
+    return jsonify(profiles)
+
+
+# 📌 API: Get single profile
+@app.route('/api/profile/<int:id>', methods=['GET'])
+def get_profile(id):
+    if 0 <= id < len(profiles):
+        return jsonify(profiles[id])
+    return jsonify({"error": "Not found"}), 404
+
+
+# Run server
+if __name__ == '__main__':
+    app.run(debug=True)
